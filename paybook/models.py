@@ -51,5 +51,3 @@ class WageRecord(models.Model):
     employee = models.ForeignKey(to=Employee,
                                  on_delete=models.CASCADE,
                                  verbose_name="employee")
-
-    
