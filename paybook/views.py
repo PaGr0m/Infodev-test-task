@@ -19,4 +19,7 @@ class AboutView(View):
         print("1", employees)
         print("2", backends)
 
+        for emp in employees:
+            print("sal", emp.get_year_salary)
+
         return JsonResponse({}, status=201)

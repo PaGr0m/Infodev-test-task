@@ -3,15 +3,22 @@ from django.contrib.admin import register
 from .models import Employee, WageRecord
 
 
-# admin.register(Employee)
-# admin.register(WageRecord)
-
+# admin.site.register(Employee)
+# admin.site.register(WageRecord)
 
 @register(Employee)
-class DataAdmin(admin.ModelAdmin):
-    list_display = []
+class EmployeeAdmin(admin.ModelAdmin):
+    list_display = [
+        "full_name",
+        "employee_type"
+    ]
 
 
 @register(WageRecord)
-class DeviceAdmin(admin.ModelAdmin):
-    list_display = []
+class WageRecordAdmin(admin.ModelAdmin):
+    list_display = [
+        "month",
+        "year",
+        "salary",
+        "employee"
+    ]
