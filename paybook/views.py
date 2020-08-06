@@ -8,10 +8,11 @@ from .models import BackendProgrammer, Employee
 
 @method_decorator(csrf_exempt, name="dispatch")
 class AboutView(View):
+    """ Just for tests """
+
     http_method_names = ["get"]
 
     def get(self, request, *args, **kwargs):
-        print(request)
 
         employees = Employee.objects.all()
         backends = BackendProgrammer.objects.all()

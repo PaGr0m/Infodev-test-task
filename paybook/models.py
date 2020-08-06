@@ -1,30 +1,37 @@
+import datetime
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.db.models import QuerySet
+from django.db.models import Sum
+
+from .constants import EmployeeConstants
 from .managers import \
     BackendProgrammerManager, \
     DesignerManager, \
     FreelanceCoderManager
-import datetime
+from currency_converter import CurrencyConverter
 
 
-class Employee(models.Model):
-    EMPLOYEE_TYPES = (
-        ("BE", "Backend programmer"),
-        ("FR", "Freelance coder"),
-        ("DSGN", "Designer")
-    )
-
+class Employee(models.Model, EmployeeConstants):
     full_name = models.CharField(verbose_name="full name",
                                  max_length=30)
-    employee_type = models.TextField(choices=EMPLOYEE_TYPES)
+    employee_type = models.TextField(choices=EmployeeConstants.EMPLOYEE_TYPES)
 
-    def get_year_salary(self):
-        records = Employee.objects.get(id=self.id).wage_records
-        print("get::", records)
+    def get_year_salary(self, year):
+        records: QuerySet = self.wage_records.filter(year=year)
 
-        return 42
+        if not records.exists():
+            raise ObjectDoesNotExist(
+                f"There are no salary records for the current year ({year})"
+            )
 
-    def get_year_salary_with_tax(self):
-        return self.get_year_salary()
+        return records.aggregate(
+            year_salary=Sum("salary")
+        ).get("year_salary", 0)
+
+    def get_year_salary_with_tax(self, year):
+        return self.get_year_salary(year)
 
     class Meta:
         verbose_name = "Employee"
@@ -33,10 +40,11 @@ class Employee(models.Model):
 
 class BackendProgrammer(Employee):
     TAX = 0.13
+
     objects = BackendProgrammerManager()
 
-    def get_year_salary_with_tax(self):
-        return self.get_year_salary() * (1 - self.TAX)
+    def get_year_salary_with_tax(self, year):
+        return self.get_year_salary(year) * (1 - self.TAX)
 
     class Meta:
         proxy = True
@@ -48,17 +56,12 @@ class FreelanceCoder(Employee):
 
     objects = FreelanceCoderManager()
 
-    def get_year_salary_with_tax(self):
-        salary_with_tax = self.get_year_salary() * (1 - self.TAX)
-
-        # if salary_with_tax < self.UNIFIED_SOCIAL_TAX:
-        #     return self.get_year_salary() - self.UNIFIED_SOCIAL_TAX
-        #
-        # return salary_with_tax
+    def get_year_salary_with_tax(self, year):
+        salary_with_tax = self.get_year_salary(year) * (1 - self.TAX)
 
         return salary_with_tax \
             if salary_with_tax < self.UNIFIED_SOCIAL_TAX \
-            else self.get_year_salary() - self.UNIFIED_SOCIAL_TAX
+            else self.get_year_salary(year) - self.UNIFIED_SOCIAL_TAX
 
     class Meta:
         proxy = True
@@ -66,10 +69,15 @@ class FreelanceCoder(Employee):
 
 class DesignerProgrammer(Employee):
     TAX = 0.06
+
     objects = DesignerManager()
 
-    def get_year_salary_with_tax(self):
-        return self.get_year_salary() * (1 - self.TAX)
+    def get_year_salary_with_tax(self, year):
+        return self.get_year_salary(year) * (1 - self.TAX)
+
+    def currency_conversion(self, year, currency):
+        converter = CurrencyConverter()
+        return converter.convert(self.get_year_salary(year), "RUB", currency)
 
     class Meta:
         proxy = True
@@ -80,8 +88,15 @@ class WageRecord(models.Model):
                                 default=datetime.datetime.now().month)
     year = models.IntegerField(verbose_name="current year",
                                default=datetime.datetime.now().year)
-    salary = models.FloatField(verbose_name="salary")
+    salary = models.DecimalField(verbose_name="salary",
+                                 max_digits=10,
+                                 decimal_places=2)
     employee = models.ForeignKey(to=Employee,
                                  related_name="wage_records",
                                  on_delete=models.CASCADE,
                                  verbose_name="employee")
+
+    class Meta:
+        verbose_name = "Wage record"
+        verbose_name_plural = "Wage records"
+        unique_together = ["month", "year", "employee"]
