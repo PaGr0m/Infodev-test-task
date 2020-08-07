@@ -26,16 +26,16 @@ class Employee(models.Model, EmployeeConstants):
                 f"There are no salary records for the current year ({year})"
             )
 
-        return records.aggregate(
+        return float(records.aggregate(
             year_salary=Sum("salary")
-        ).get("year_salary", 0)
+        ).get("year_salary", 0))
 
     def get_year_salary_with_tax(self, year):
         return self.get_year_salary(year)
 
     class Meta:
         verbose_name = "Employee"
-        verbose_name_plural = "Employees"
+        verbose_name_plural = "Staff"
 
 
 class BackendProgrammer(Employee):
